@@ -252,15 +252,42 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand-weak)
   padding: 10px 20px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
 }
 .print-toolbar h1 { font-size: 18px; }
+.week-num { width: 70px; }
+.print-week-picker { border: 1px solid var(--line); border-radius: 8px; margin: 0; padding: 6px 12px; width: 100%; }
+.print-week-picker legend { font-size: 12.5px; color: var(--muted); padding: 0 4px; }
+.print-week-list { display: flex; flex-wrap: wrap; gap: 6px 4px; }
+.week-check {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 13px;
+  padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; cursor: pointer;
+  color: var(--ink); background: #fff; user-select: none;
+}
+.week-check input { margin: 0; }
+.week-check:hover { border-color: var(--brand); }
+.week-check-on { background: var(--brand-weak); border-color: #93c5fd; color: #1d4ed8; font-weight: 600; }
+.week-check-out { opacity: 0.45; background: #f6f7f9; cursor: not-allowed; }
+.print-summary { display: flex; flex-direction: column; gap: 6px; width: 100%; margin: 0; }
+.print-page-list { display: flex; flex-wrap: wrap; gap: 4px 8px; margin: 0; padding: 0; }
+.print-page-list li { list-style: none; }
+.print-page-list a {
+  font-size: 12.5px; padding: 2px 9px; border: 1px solid var(--line); border-radius: 999px;
+  background: #f8fafc; display: inline-block;
+}
+.print-page-list a:hover { border-color: var(--brand); background: var(--brand-weak); }
 .print-sheet {
   background: #fff; margin: 0 auto 14px; padding: 12mm 10mm;
   width: 210mm; min-height: 280mm; display: flex; flex-direction: column; gap: 6mm;
   border: 1px solid var(--line);
 }
-.print-head { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #333; padding-bottom: 3mm; }
+.print-sheet:target { scroll-margin-top: 14px; }
+.print-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8mm; border-bottom: 2px solid #333; padding-bottom: 3mm; }
 .print-head h2 { font-size: 20px; margin: 0; color: #000; }
-.print-date { color: #555; font-size: 12px; }
-.print-foot { display: flex; justify-content: space-between; gap: 10mm; color: #444; font-size: 11px; border-top: 1px solid #ccc; padding-top: 2mm; }
+.print-cont-tag {
+  font-style: normal; font-size: 11pt; font-weight: 700; color: #b91c1c;
+  border: 1px solid #b91c1c; border-radius: 5px; padding: 1px 7px; letter-spacing: 1px;
+}
+.print-date { color: #555; font-size: 12px; white-space: nowrap; }
+.print-foot { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 1mm 6mm; color: #444; font-size: 11px; border-top: 1px solid #ccc; padding-top: 2mm; }
+.print-cont-note { color: #b91c1c; font-weight: 600; }
 .print-sheet .stage-bar { background: #333; }
 .print-sheet .seat { min-height: 20mm; border: 1.2px solid #333; }
 .print-sheet .seat-name { font-size: 15pt; font-weight: 700; color: #000; }
@@ -269,16 +296,26 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand-weak)
 .print-sheet .tag-middle, .print-sheet .tag-back { background: #fff; border-color: #333; }
 .print-sheet .seatmap-footer { display: none; }
 
+/* 隐藏实测层：屏幕上移到视口外但保留布局测量；宽度/内边距与 @page 实际可打印区域一致 */
+.print-measure-host {
+  position: fixed; left: 0; top: -99999px; pointer-events: none; z-index: -1;
+  visibility: hidden; overflow: hidden;
+}
+.print-measure-host .print-sheet.print-measure {
+  width: 194mm; min-height: 0; margin: 0; padding: 0; border: none;
+}
+
 @media print {
   @page { size: A4 portrait; margin: 8mm; }
   body { background: #fff; }
-  .no-print, .topbar { display: none !important; }
+  .no-print, .topbar, .print-measure-host { display: none !important; }
   .main-print { padding: 0; }
   .print-sheet {
     width: auto; min-height: auto; border: none; margin: 0;
     page-break-after: always; padding: 0;
   }
-  .print-sheet:last-child { page-break-after: auto; }
+  /* 实测层在 DOM 末尾，:last-child 选不到真正的末页，必须显式给最后一页取消断页，否则多出一张空白页 */
+  .print-page-last { page-break-after: auto; }
 }
 
 /* ---------- 移动端 ---------- */

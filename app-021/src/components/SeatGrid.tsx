@@ -11,6 +11,8 @@ interface SeatGridProps {
   onSwapPreview?: (from: string, to: string | null) => void
   onDropSwap?: (from: string, to: string) => void
   compact?: boolean
+  /** 只渲染该排号区间内的座位（0-based，含两端）。打印续页时使用 */
+  rowRange?: { start: number; end: number }
 }
 
 interface GridMeta {
@@ -19,6 +21,7 @@ interface GridMeta {
   spacerCols: number[]
 }
 
+/** 把过道列插入 CSS grid 列模板；返回完整模板与物理列 → grid 列的映射 */
 function gridMeta(cls: ClassEntity): GridMeta {
   const { cols, aisles } = cls.layout
   const spacerCols = aisles.map((a) => a + 2) // 1-based 网格线位置
@@ -34,7 +37,7 @@ function gridMeta(cls: ClassEntity): GridMeta {
   }
 }
 
-export function SeatGrid({ cls, assignment, draggable, onSwapPreview, onDropSwap, compact }: SeatGridProps) {
+export function SeatGrid({ cls, assignment, draggable, onSwapPreview, onDropSwap, compact, rowRange }: SeatGridProps) {
   const meta = useMemo(() => gridMeta(cls), [cls])
   const studentById = useMemo(() => new Map(cls.students.map((s) => [s.id, s])), [cls.students])
   // 拖拽源座位：dragover 阶段 dataTransfer.getData() 受 protected mode 限制（返回空串），
@@ -74,17 +77,22 @@ export function SeatGrid({ cls, assignment, draggable, onSwapPreview, onDropSwap
   }
 
   const { rows } = cls.layout
+  // 续页场景：只渲染部分排。CSS grid 的行号要相对切片起点重新排布，过道竖条也只覆盖可见排
+  const start = rowRange?.start ?? 0
+  const end = rowRange?.end ?? rows - 1
+  const visibleRows = Math.max(0, end - start + 1)
+  const visibleSeats = cls.seats.filter((seat) => seat.row >= start && seat.row <= end)
 
   return (
     <div className={compact ? 'seatmap seatmap-print' : 'seatmap'} data-testid="seat-grid">
       <div className="stage-bar" aria-label="讲台方向">
         <span>▲ 讲台</span>
       </div>
-      <div className="seat-canvas" style={{ gridTemplateColumns: meta.template, gridTemplateRows: `repeat(${rows}, auto)` }}>
+      <div className="seat-canvas" style={{ gridTemplateColumns: meta.template, gridTemplateRows: `repeat(${visibleRows}, auto)` }}>
         {meta.spacerCols.map((c) => (
-          <div key={`sp-${c}`} className="aisle-spacer" style={{ gridColumn: c, gridRow: `1 / span ${rows}` }} />
+          <div key={`sp-${c}`} className="aisle-spacer" style={{ gridColumn: c, gridRow: `1 / span ${visibleRows}` }} />
         ))}
-        {cls.seats.map((seat) => {
+        {visibleSeats.map((seat) => {
           const st = occupantOf(seat)
           const tags = seat.tags
           const cls2 = [
@@ -101,7 +109,7 @@ export function SeatGrid({ cls, assignment, draggable, onSwapPreview, onDropSwap
             <div
               key={seat.id}
               className={cls2}
-              style={{ gridColumn: meta.vCol(seat.col), gridRow: seat.row + 1 }}
+              style={{ gridColumn: meta.vCol(seat.col), gridRow: seat.row - start + 1 }}
               data-seat-id={seat.id}
               data-row={seat.row}
               data-col={seat.col}
