@@ -11,6 +11,8 @@ interface SeatGridProps {
   onSwapPreview?: (from: string, to: string | null) => void
   onDropSwap?: (from: string, to: string) => void
   compact?: boolean
+  // 只渲染部分排（打印续页用）：[from, to)，行号 0-based
+  rowRange?: [number, number]
 }
 
 interface GridMeta {
@@ -34,7 +36,7 @@ function gridMeta(cls: ClassEntity): GridMeta {
   }
 }
 
-export function SeatGrid({ cls, assignment, draggable, onSwapPreview, onDropSwap, compact }: SeatGridProps) {
+export function SeatGrid({ cls, assignment, draggable, onSwapPreview, onDropSwap, compact, rowRange }: SeatGridProps) {
   const meta = useMemo(() => gridMeta(cls), [cls])
   const studentById = useMemo(() => new Map(cls.students.map((s) => [s.id, s])), [cls.students])
   // 拖拽源座位：dragover 阶段 dataTransfer.getData() 受 protected mode 限制（返回空串），
@@ -45,6 +47,12 @@ export function SeatGrid({ cls, assignment, draggable, onSwapPreview, onDropSwap
     const id = map[seat.id]
     return id ? studentById.get(id) : undefined
   }
+
+  const { rows } = cls.layout
+  // 打印续页：只保留窗口内的行，gridRow 按窗口平移，让每张图自成完整网格
+  const [fromRow, toRow] = rowRange ?? [0, rows]
+  const shownSeats = cls.seats.filter((s) => s.row >= fromRow && s.row < toRow)
+  const shownRows = toRow - fromRow
 
   const handleDragStart = (e: React.DragEvent, seat: Seat) => {
     if (!draggable) return
@@ -73,18 +81,16 @@ export function SeatGrid({ cls, assignment, draggable, onSwapPreview, onDropSwap
     onDropSwap?.(from, seat.id)
   }
 
-  const { rows } = cls.layout
-
   return (
     <div className={compact ? 'seatmap seatmap-print' : 'seatmap'} data-testid="seat-grid">
       <div className="stage-bar" aria-label="讲台方向">
         <span>▲ 讲台</span>
       </div>
-      <div className="seat-canvas" style={{ gridTemplateColumns: meta.template, gridTemplateRows: `repeat(${rows}, auto)` }}>
+      <div className="seat-canvas" style={{ gridTemplateColumns: meta.template, gridTemplateRows: `repeat(${shownRows}, auto)` }}>
         {meta.spacerCols.map((c) => (
-          <div key={`sp-${c}`} className="aisle-spacer" style={{ gridColumn: c, gridRow: `1 / span ${rows}` }} />
+          <div key={`sp-${c}`} className="aisle-spacer" style={{ gridColumn: c, gridRow: `1 / span ${shownRows}` }} />
         ))}
-        {cls.seats.map((seat) => {
+        {shownSeats.map((seat) => {
           const st = occupantOf(seat)
           const tags = seat.tags
           const cls2 = [
@@ -101,7 +107,7 @@ export function SeatGrid({ cls, assignment, draggable, onSwapPreview, onDropSwap
             <div
               key={seat.id}
               className={cls2}
-              style={{ gridColumn: meta.vCol(seat.col), gridRow: seat.row + 1 }}
+              style={{ gridColumn: meta.vCol(seat.col), gridRow: seat.row - fromRow + 1 }}
               data-seat-id={seat.id}
               data-row={seat.row}
               data-col={seat.col}
